@@ -1,139 +1,139 @@
 <!DOCTYPE html>
 <html lang="en">
-    <head>
-        <meta charset="utf-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1">
-        <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@500&display=swap" rel="stylesheet">
-        <link href="{{ url_for('static', filename='styles.css') }}" rel="stylesheet">
-        <title>Birthdays</title>
-    </head>
-    <body>
-        <div class="header">
-            <h1>Birthdays</h1>
-            {% if session.get("user_id") %}
-                <p>Welcome, {{ session.get("username") }}!</p>
-                <form action="{{ url_for('logout') }}" method="post" class="logout-form">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@500&display=swap" rel="stylesheet">
+    <link href="{{ url_for('static', filename='styles.css') }}" rel="stylesheet">
+    <title>Birthdays</title>
+</head>
+<body>
+    <div class="header">
+        <h1>Birthdays</h1>
+        {% if session.get('user_id') %}
+            <p>Welcome, {{ session.get('username') }}!</p>
+            <form action="{{ url_for('logout') }}" method="post" class="logout-form">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                <input type="submit" value="Log Out">
+            </form>
+        {% endif %}
+    </div>
+    <div class="container">
+        {% for message in get_flashed_messages() %}<p class="notice">{{ message }}</p>{% endfor %}
+        {% if not session.get('user_id') %}
+            <div class="section">
+                <h2>Log In</h2>
+                <form action="{{ url_for('login') }}" method="post" class="auth-form">
                     <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-                    <input type="submit" value="Log Out">
+                    <input name="username" type="text" placeholder="Username" minlength="3" maxlength="30" required autocomplete="username">
+                    <input name="password" type="password" placeholder="Password" required autocomplete="current-password">
+                    <input type="submit" value="Log In">
                 </form>
+            </div>
+            <div class="section">
+                <h2>Create an Account</h2>
+                <p>Your birthday list is private to your account.</p>
+                <form action="{{ url_for('register') }}" method="post" class="auth-form">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                    <input name="username" type="text" placeholder="Choose a username" minlength="3" maxlength="30" required autocomplete="username">
+                    <input name="email" type="email" placeholder="Your email address" maxlength="254" required autocomplete="email">
+                    <input name="password" type="password" placeholder="Choose a password (8+ characters)" minlength="8" required autocomplete="new-password">
+                    <input type="submit" value="Create Account">
+                </form>
+            </div>
+            <div class="section">
+                <h2>Forgot Password?</h2>
+                <p>Enter the username and email address you registered with to request a reset link.</p>
+                <form action="{{ url_for('forgot_password') }}" method="post" class="auth-form">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                    <input name="username" type="text" placeholder="Username" required>
+                    <input name="email" type="email" placeholder="Registered email" required>
+                    <input type="submit" value="Send Reset Link">
+                </form>
+            </div>
+        {% else %}
+            {% if needs_email %}
+                <div class="section">
+                    <h2>Add Your Email Address</h2>
+                    <p>Your account was created before email addresses were required. Add yours to use email reminders and password recovery.</p>
+                    <form action="{{ url_for('set_email') }}" method="post" class="auth-form">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                        <input name="email" type="email" placeholder="Your email address" required>
+                        <input name="password" type="password" placeholder="Current password" required>
+                        <input type="submit" value="Save Email">
+                    </form>
+                </div>
             {% endif %}
-        </div>
-
-        <div class="container">
-            {% for message in get_flashed_messages() %}
-                <p class="notice">{{ message }}</p>
-            {% endfor %}
-
-            {% if not session.get("user_id") %}
-                <div class="section">
-                    <h2>Log In</h2>
-                    <form action="{{ url_for('login') }}" method="post" class="auth-form">
-                        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-                        <input name="username" type="text" placeholder="Username" minlength="3" maxlength="30" required autocomplete="username">
-                        <input name="password" type="password" placeholder="Password" required autocomplete="current-password">
-                        <input type="submit" value="Log In">
-                    </form>
+            <div class="section">
+                <h2>Add a Birthday</h2>
+                <form action="{{ url_for('index') }}" method="post" class="birthday-form">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                    <input name="name" type="text" placeholder="Name" maxlength="100" required>
+                    <input name="month" type="number" placeholder="Month" min="1" max="12" required>
+                    <input name="day" type="number" placeholder="Day" min="1" max="31" required>
+                    <label for="reminder_days">Remind me</label>
+                    <select name="reminder_days" id="reminder_days">
+                        <option value="0">On the day</option>
+                        <option value="1">1 day before</option>
+                        <option value="3">3 days before</option>
+                        <option value="7" selected>7 days before</option>
+                        <option value="14">14 days before</option>
+                        <option value="30">30 days before</option>
+                    </select>
+                    <label class="checkbox-label" for="email_reminder">
+                        <input id="email_reminder" name="email_reminder" type="checkbox" checked>
+                        Email me a reminder
+                    </label>
+                    <input type="submit" value="Add Birthday">
+                </form>
+            </div>
+            {% if reminders %}
+                <div class="section reminders">
+                    <h2>Upcoming Reminders</h2>
+                    {% for birthday in reminders %}
+                        <p><strong>{{ birthday.name }}</strong> —
+                            {% if birthday.days_until == 0 %}birthday is today! 🎂
+                            {% elif birthday.days_until == 1 %}birthday is tomorrow!
+                            {% else %}birthday is in {{ birthday.days_until }} days.{% endif %}
+                        </p>
+                    {% endfor %}
                 </div>
-
-                <div class="section">
-                    <h2>Create an Account</h2>
-                    <p>Your birthday list is private to your account.</p>
-                    <form action="{{ url_for('register') }}" method="post" class="auth-form">
-                        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-                        <input name="username" type="text" placeholder="Choose a username" minlength="3" maxlength="30" required autocomplete="username">
-                        <input name="password" type="password" placeholder="Choose a password (8+ characters)" minlength="8" required autocomplete="new-password">
-                        <input type="submit" value="Create Account">
-                    </form>
-                </div>
-            {% else %}
-                <div class="section">
-                    <h2>Add a Birthday</h2>
-                    <form action="{{ url_for('index') }}" method="post" class="birthday-form">
-                        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-                        <input name="name" type="text" placeholder="Name" maxlength="100" required>
-                        <input name="month" type="number" placeholder="Month" min="1" max="12" required>
-                        <input name="day" type="number" placeholder="Day" min="1" max="31" required>
-                        <label for="reminder_days">Remind me</label>
-                        <select name="reminder_days" id="reminder_days">
-                            <option value="0">On the day</option>
-                            <option value="1">1 day before</option>
-                            <option value="3">3 days before</option>
-                            <option value="7" selected>7 days before</option>
-                            <option value="14">14 days before</option>
-                            <option value="30">30 days before</option>
-                        </select>
-                        <input type="submit" value="Add Birthday">
-                    </form>
-                </div>
-
-                {% if reminders %}
-                    <div class="section reminders">
-                        <h2>Upcoming Reminders</h2>
-                        {% for birthday in reminders %}
-                            <p>
-                                <strong>{{ birthday.name }}</strong> —
-                                {% if birthday.days_until == 0 %}
-                                    birthday is today! 🎂
-                                {% elif birthday.days_until == 1 %}
-                                    birthday is tomorrow!
-                                {% else %}
-                                    birthday is in {{ birthday.days_until }} days.
-                                {% endif %}
-                            </p>
-                        {% endfor %}
-                    </div>
-                {% endif %}
-
-                <div class="section">
-                    <h2>All Birthdays</h2>
-                    {% if birthdays %}
-                        <table>
-                            <thead>
+            {% endif %}
+            <div class="section">
+                <h2>All Birthdays</h2>
+                {% if birthdays %}
+                    <table>
+                        <thead><tr><th>Name</th><th>Birthday</th><th>Next Birthday</th><th>Reminder</th><th>Email</th><th>Action</th></tr></thead>
+                        <tbody>
+                            {% for birthday in birthdays %}
                                 <tr>
-                                    <th>Name</th>
-                                    <th>Birthday</th>
-                                    <th>Next Birthday</th>
-                                    <th>Reminder</th>
-                                    <th>Action</th>
+                                    <td>{{ birthday.name }}</td>
+                                    <td>{{ '%02d'|format(birthday.month) }}/{{ '%02d'|format(birthday.day) }}</td>
+                                    <td>{% if birthday.days_until == 0 %}Today! 🎂{% elif birthday.days_until == 1 %}Tomorrow{% else %}In {{ birthday.days_until }} days{% endif %}</td>
+                                    <td>{% if birthday.reminder_days == 0 %}On the day{% else %}{{ birthday.reminder_days }} day{% if birthday.reminder_days != 1 %}s{% endif %} before{% endif %}</td>
+                                    <td>{{ 'On' if birthday.email_reminder else 'Off' }}</td>
+                                    <td><form action="{{ url_for('delete') }}" method="post">
+                                        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                                        <input type="hidden" name="id" value="{{ birthday.id }}">
+                                        <input type="submit" value="Delete">
+                                    </form></td>
                                 </tr>
-                            </thead>
-                            <tbody>
-                                {% for birthday in birthdays %}
-                                    <tr>
-                                        <td>{{ birthday.name }}</td>
-                                        <td>{{ "%02d"|format(birthday.month) }}/{{ "%02d"|format(birthday.day) }}</td>
-                                        <td>
-                                            {% if birthday.days_until == 0 %}
-                                                Today! 🎂
-                                            {% elif birthday.days_until == 1 %}
-                                                Tomorrow
-                                            {% else %}
-                                                In {{ birthday.days_until }} days
-                                            {% endif %}
-                                        </td>
-                                        <td>
-                                            {% if birthday.reminder_days == 0 %}
-                                                On the day
-                                            {% else %}
-                                                {{ birthday.reminder_days }} day{% if birthday.reminder_days != 1 %}s{% endif %} before
-                                            {% endif %}
-                                        </td>
-                                        <td>
-                                            <form action="{{ url_for('delete') }}" method="post">
-                                                <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-                                                <input type="hidden" name="id" value="{{ birthday.id }}">
-                                                <input type="submit" value="Delete">
-                                            </form>
-                                        </td>
-                                    </tr>
-                                {% endfor %}
-                            </tbody>
-                        </table>
-                    {% else %}
-                        <p>You haven't added any birthdays yet. Add one above!</p>
-                    {% endif %}
-                </div>
-            {% endif %}
-        </div>
-    </body>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                {% else %}<p>You haven't added any birthdays yet. Add one above!</p>{% endif %}
+            </div>
+            <div class="section">
+                <h2>Change Password</h2>
+                <form action="{{ url_for('change_password') }}" method="post" class="auth-form">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                    <input name="current_password" type="password" placeholder="Current password" required autocomplete="current-password">
+                    <input name="new_password" type="password" placeholder="New password (8+ characters)" minlength="8" required autocomplete="new-password">
+                    <input name="confirm_password" type="password" placeholder="Confirm new password" minlength="8" required autocomplete="new-password">
+                    <input type="submit" value="Change Password">
+                </form>
+            </div>
+        {% endif %}
+    </div>
+</body>
 </html>
